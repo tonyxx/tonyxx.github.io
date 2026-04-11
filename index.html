@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>sin-wave | 正弦波视觉呈现</title>
+    <!-- 引入现代无衬线字体，提升优雅感 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none; /* 避免拖动文字造成干扰，不影响体验 */
+        }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 30% 10%, #0b1120, #03060f);
+            /* 深邃星空蓝黑渐变，衬托波浪光效 */
+            font-family: 'Inter', 'Segoe UI', 'Poppins', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Canvas 动态波浪背景层 */
+        .wave-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            pointer-events: none;  /* 让波浪层不干扰点击文字，但保留视觉穿透 */
+            z-index: 0;
+        }
+
+        /* 主要内容容器，位于波浪之上 */
+        .hero {
+            position: relative;
+            z-index: 2;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            backdrop-filter: blur(2px); /* 极轻的模糊让文字与背景更融合，但不失清晰 */
+        }
+
+        /* 大标题 sin-wave 的核心样式 */
+        .sin-title {
+            font-size: clamp(4rem, 18vw, 14rem);
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: #f0fcff;
+            text-transform: lowercase;
+            /* 多层文本阴影: 霓虹光晕 + 深邃立体感 */
+            text-shadow: 
+                0 0 8px rgba(0, 255, 255, 0.7),
+                0 0 18px rgba(0, 180, 255, 0.5),
+                0 0 30px rgba(0, 200, 255, 0.3),
+                4px 4px 12px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+            animation: gentleFloat 4s ease-in-out infinite;
+            background: linear-gradient(135deg, #e0f3ff 0%, #a0e9ff 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: none; /* 清除之前的阴影，改用渐变+动态发光效果，更高级 */
+            /* 增加一个外发光备用效果，由于color透明，阴影作用于背景周围，需单独处理 */
+            position: relative;
+            display: inline-block;
+        }
+
+        /* 给文字添加一个发光描边层，实现霓虹质感，由于文字透明，使用伪元素增强效果 */
+        .sin-title {
+            /* 重新定义实色阴影以便配合渐变文字: 使用drop-shadow滤镜，更现代 */
+            filter: drop-shadow(0 0 8px rgba(0, 230, 250, 0.8)) 
+                    drop-shadow(0 0 18px rgba(0, 160, 255, 0.6))
+                    drop-shadow(2px 4px 12px rgba(0, 0, 0, 0.5));
+        }
+
+        /* 优雅的浮动动画，契合波浪主题 */
+        @keyframes gentleFloat {
+            0% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-8px);
+            }
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        /* 可选的辅助装饰：一个微光点围绕鼠标，高级感 (但非必须，保持简洁) */
+        @media (prefers-reduced-motion: reduce) {
+            .sin-title {
+                animation: none;
+            }
+        }
+
+        /* 极简响应式适配，确保任何设备下文字依然醒目 */
+        @media (max-width: 640px) {
+            .sin-title {
+                letter-spacing: 0.03em;
+                filter: drop-shadow(0 0 6px cyan) drop-shadow(0 0 12px #0af);
+            }
+        }
+
+        /* 增加一个微妙的文字背景磨砂效果容器，提升文字在波浪上的可读性（可选） */
+        .title-wrapper {
+            padding: 1rem 2rem;
+            border-radius: 80px;
+            background: rgba(5, 15, 30, 0.2);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        .title-wrapper:hover {
+            transform: scale(1.02);
+            border-color: rgba(0, 255, 255, 0.5);
+            background: rgba(10, 25, 45, 0.3);
+        }
+
+        /* 优雅的小点缀提示——sin wave 概念微标 (可增加趣味) */
+        .wave-subtle {
+            position: fixed;
+            bottom: 20px;
+            right: 24px;
+            z-index: 3;
+            font-size: 0.75rem;
+            font-family: monospace;
+            color: rgba(160, 220, 255, 0.5);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 12px;
+            border-radius: 40px;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+
+        /* 左下方一个小点缀，展示波形符号 */
+        .wave-icon {
+            position: fixed;
+            bottom: 20px;
+            left: 24px;
+            z-index: 3;
+            font-size: 1.6rem;
+            opacity: 0.4;
+            pointer-events: none;
+            filter: drop-shadow(0 0 3px cyan);
+            transition: opacity 0.3s;
+        }
+
+        @media (max-width: 560px) {
+            .wave-subtle, .wave-icon {
+                display: none; /* 移动端过于拥挤，隐藏装饰 */
+            }
+            .title-wrapper {
+                backdrop-filter: blur(5px);
+                padding: 0.8rem 1.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 动态正弦波画布，渲染流动的波形，呼应 sin-wave 主题 -->
+    <canvas id="sinWaveCanvas" class="wave-canvas"></canvas>
+
+    <div class="hero">
+        <div class="title-wrapper">
+            <h1 class="sin-title">sin-wave</h1>
+        </div>
+    </div>
+
+    <!-- 细微装饰：增强wave氛围 -->
+    <div class="wave-subtle">~ sine wave oscillation ~</div>
+    <div class="wave-icon">〰️🌊</div>
+
+    <script>
+        (function() {
+            // 获取canvas元素及上下文
+            const canvas = document.getElementById('sinWaveCanvas');
+            let ctx = canvas.getContext('2d');
+            
+            // 波浪动画参数
+            let phaseShift1 = 0;      // 第一条波浪相位偏移
+            let phaseShift2 = 1.2;     // 第二条波浪初始偏移
+            let phaseShift3 = 2.5;     // 第三条波浪初始偏移
+            
+            // 不同波浪的移动速度 (rad/frame)
+            const speed1 = 0.018;
+            const speed2 = 0.022;
+            const speed3 = 0.014;
+            
+            // 动画帧ID
+            let animationId = null;
+            
+            // 振幅系数 (将根据画布高度动态微调，让波形不过于夸张但足够优雅)
+            let amplitude1 = 45;
+            let amplitude2 = 35;
+            let amplitude3 = 55;
+            
+            // 频率系数 (控制波长，使不同屏幕下都有2-4个完整波形，更美观)
+            let frequency = 0.022;   // 每像素弧度系数，x * frequency 决定周期，宽度1920时约4.5个周期
+            
+            // 基线位置 (相对画布高度的比例)
+            let baseline1 = 0.32;     // 上部波形基线位置比例
+            let baseline2 = 0.5;      // 中部波形
+            let baseline3 = 0.68;     // 下部波形
+            
+            // 存储当前canvas尺寸，避免频繁读取
+            let winWidth = window.innerWidth;
+            let winHeight = window.innerHeight;
+            
+            // 颜色配置 (半透明霓虹质感，与背景深度融合)
+            const color1 = 'rgba(0, 210, 255, 0.75)';   // 明亮青
+            const color2 = 'rgba(120, 100, 255, 0.7)';  // 紫罗兰
+            const color3 = 'rgba(0, 255, 180, 0.65)';   // 薄荷绿
+            
+            // 线条宽度
+            const lineWidthBase = 2.8;
+            
+            // 调整canvas尺寸并适应设备像素比 (保持锐利)
+            function resizeCanvas() {
+                winWidth = window.innerWidth;
+                winHeight = window.innerHeight;
+                canvas.width = winWidth;
+                canvas.height = winHeight;
+                
+                // 根据屏幕高度动态调整振幅，使波浪在不同尺寸下都明显但不过于突兀
+                amplitude1 = Math.min(65, Math.max(28, winHeight * 0.08));
+                amplitude2 = Math.min(55, Math.max(22, winHeight * 0.065));
+                amplitude3 = Math.min(70, Math.max(30, winHeight * 0.09));
+                
+                // 频率根据宽度微调，让较宽屏幕也有合适的波形数量 (保持视觉舒适)
+                if (winWidth > 1400) {
+                    frequency = 0.019;
+                } else if (winWidth < 700) {
+                    frequency = 0.028;
+                } else {
+                    frequency = 0.022;
+                }
+                
+                // 基线位置可以根据屏幕比例做微调，使视觉平衡
+                baseline1 = winHeight > 800 ? 0.33 : 0.32;
+                baseline2 = 0.5;
+                baseline3 = winHeight > 800 ? 0.67 : 0.68;
+                
+                // 重绘一帧确保尺寸改变后立即刷新，避免残影
+                if (ctx) {
+                    drawWaves();
+                }
+            }
+            
+            // 绘制正弦波的核心函数 (动态相位)
+            function drawWaves() {
+                if (!ctx || canvas.width === 0 || canvas.height === 0) return;
+                
+                // 清除画布 (透明背景，保留CSS渐变背景可见)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const w = canvas.width;
+                const h = canvas.height;
+                
+                // 计算基线Y坐标
+                const yBase1 = h * baseline1;
+                const yBase2 = h * baseline2;
+                const yBase3 = h * baseline3;
+                
+                // 振幅最终值 (确保平滑)
+                const A1 = amplitude1;
+                const A2 = amplitude2;
+                const A3 = amplitude3;
+                
+                const k = frequency; // 波数系数
+                
+                // 绘制第一条波浪 (青色，移动速度speed1)
+                ctx.beginPath();
+                ctx.lineWidth = lineWidthBase;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = color1;
+                
+                let x = 0;
+                let step = Math.max(1.5, Math.floor(w / 450)); // 步长动态控制性能，高分辨率平滑
+                let firstPoint = true;
+                
+                for (x = 0; x <= w; x += step) {
+                    // 正弦计算: y = baseY + A * sin( k * x + phaseShift )
+                    let y1 = yBase1 + A1 * Math.sin(k * x + phaseShift1);
+                    if (firstPoint) {
+                        ctx.moveTo(x, y1);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(x, y1);
+                    }
+                }
+                ctx.stroke();
+                
+                // 第二条波浪 (淡紫色，相位速度稍快)
+                ctx.beginPath();
+                ctx.lineWidth = lineWidthBase - 0.2;
+                ctx.strokeStyle = color2;
+                firstPoint = true;
+                for (x = 0; x <= w; x += step) {
+                    let y2 = yBase2 + A2 * Math.sin(k * x + phaseShift2);
+                    if (firstPoint) {
+                        ctx.moveTo(x, y2);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(x, y2);
+                    }
+                }
+                ctx.stroke();
+                
+                // 第三条波浪 (亮绿色/青绿，移动速度较缓，营造层次)
+                ctx.beginPath();
+                ctx.lineWidth = lineWidthBase + 0.2;
+                ctx.strokeStyle = color3;
+                firstPoint = true;
+                for (x = 0; x <= w; x += step) {
+                    let y3 = yBase3 + A3 * Math.sin(k * x + phaseShift3);
+                    if (firstPoint) {
+                        ctx.moveTo(x, y3);
+                        firstPoint = false;
+                    } else {
+                        ctx.lineTo(x, y3);
+                    }
+                }
+                ctx.stroke();
+                
+                // 可选: 添加极细微的光晕点 (画龙点睛) —— 在波峰添加少量光粒，增加灵动
+                // 性能友好，随机少量点不必每帧全范围, 只在波峰关键点绘制一些光晕 (增强科技感)
+                if (w > 400 && h > 300) {
+                    ctx.save();
+                    ctx.shadowBlur = 6;
+                    ctx.shadowColor = 'rgba(0, 200, 255, 0.6)';
+                    // 只针对第一条波浪绘制一些闪亮光点，增强吸引力，数量控制在屏幕宽度/70
+                    const dotCount = Math.min(28, Math.floor(w / 70));
+                    for (let i = 0; i <= dotCount; i++) {
+                        const xPos = (i / dotCount) * w;
+                        const yPos = yBase1 + A1 * Math.sin(k * xPos + phaseShift1);
+                        ctx.beginPath();
+                        ctx.arc(xPos, yPos, 2.2, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(xPos, yPos, 1.2, 0, Math.PI * 2);
+                        ctx.fillStyle = '#aaffff';
+                        ctx.fill();
+                    }
+                    // 给第二条波浪也加少许亮点但更柔和
+                    for (let i = 2; i <= dotCount; i += 3) {
+                        const xPos = (i / dotCount) * w;
+                        const yPos = yBase2 + A2 * Math.sin(k * xPos + phaseShift2);
+                        ctx.beginPath();
+                        ctx.arc(xPos, yPos, 1.6, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(180, 160, 255, 0.8)';
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            }
+            
+            // 更新相位偏移，制造流动感
+            function updatePhases() {
+                phaseShift1 += speed1;
+                phaseShift2 += speed2;
+                phaseShift3 += speed3;
+                // 保持数值范围无限制即可，但避免过大影响精度无所谓
+                if (phaseShift1 > Math.PI * 2) phaseShift1 -= Math.PI * 2;
+                if (phaseShift2 > Math.PI * 2) phaseShift2 -= Math.PI * 2;
+                if (phaseShift3 > Math.PI * 2) phaseShift3 -= Math.PI * 2;
+            }
+            
+            // 动画循环：更新相位并重新绘制波浪
+            function animateWaves() {
+                updatePhases();
+                drawWaves();
+                // 继续循环
+                animationId = requestAnimationFrame(animateWaves);
+            }
+            
+            // 防抖处理窗口尺寸变化，重新设置canvas大小并保持动画流畅
+            let resizeTimeout;
+            function handleResize() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    resizeCanvas();
+                    // 尺寸调整后强制重绘一帧，避免相位突变造成的闪烁，相位无需重置，让波浪无缝适配
+                    // 但因为canvas尺寸变化，画布内容会被重置，drawWaves会立即根据新尺寸绘制
+                    if (ctx) {
+                        drawWaves();
+                    }
+                }, 120);
+            }
+            
+            // 初始化波浪及事件监听
+            function init() {
+                if (!canvas || !ctx) {
+                    console.warn("canvas init error");
+                    return;
+                }
+                resizeCanvas();
+                // 启动动画
+                animateWaves();
+                window.addEventListener('resize', handleResize);
+                // 页面可见性变化时无需额外处理，但为了节能可考虑，但不影响体验，保持动画即可
+            }
+            
+            // 优雅降级，确保所有现代浏览器工作
+            if (canvas) {
+                ctx = canvas.getContext('2d');
+                if (ctx) {
+                    init();
+                } else {
+                    // 如果canvas 2d上下文不可用（极少数情况），至少显示文字区域完整，不做额外处理
+                    console.warn("WebGL不支持？但2d应该可用");
+                }
+            }
+            
+            // 页面关闭前取消动画帧，但不是必须，但良好实践
+            window.addEventListener('beforeunload', () => {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
+                window.removeEventListener('resize', handleResize);
+            });
+        })();
+    </script>
+</body>
+</html>
